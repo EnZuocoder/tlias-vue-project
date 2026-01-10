@@ -1,5 +1,5 @@
 import request from "../utils/request";
-//展示部门列表
+//展示部门列表（带尾斜杠，避免 307 重定向）
 export const listApi=()=>request.get('/depts')
 //新增部门
 export const addApi=(dept)=>request.post('/depts',dept) 

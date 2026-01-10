@@ -166,7 +166,6 @@ async function del(id)
 <!-- 新增部门对话框 -->
 <el-dialog v-model="dialogFormVisible" :title="operateTitle" width="500">
     <el-form :model="dept" :rules="rules" ref="deptFormRef" status-icon>
-      {{ dept }}
       <el-form-item label="部门名称" :label-width="'80px'" prop="name"> <!-- 这里的prop是和rules中同名的字段name对应的,会校验此处输入是否满足name处的校验规则 -->
         <el-input v-model="dept.name"/> 
       </el-form-item>

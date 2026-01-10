@@ -9,6 +9,7 @@ const ClazzView = () => import('../views/clazz/index.vue')
 const StuView = () => import('../views/stu/index.vue')
 const ReportEmpView = () => import('../views/report/emp/index.vue')
 const ReportStuView = () => import('../views/report/stu/index.vue')
+const AiAssistantView = () => import('../views/ai/index.vue')
 //配置路由表
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,6 +27,7 @@ const router = createRouter({
         { path: '/students', name: 'students', component: StuView },
         { path: '/report/emp', name: 'report-emp', component: ReportEmpView },
         { path: '/report/stu', name: 'report-stu', component: ReportStuView },
+        { path: '/ai-assistant', name: 'ai-assistant', component: AiAssistantView },
       ],
       redirect:'/home'  /* 默认重定向到index这个视图组件 */
     },

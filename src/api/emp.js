@@ -5,6 +5,9 @@ export const listApi = (name, gender, begin, end, page, pageSize) =>
     request.get('/emps', {
         params: { name, gender, begin, end, page, pageSize }
     })
+//员工列表(不带分页和查询条件)
+export const listAllEmpApi = () =>
+    request.get('/emps/list')
 //新增员工
 export const addEmpApi = (emps) =>
     request.post('/emps', emps) 

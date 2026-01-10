@@ -13,11 +13,11 @@ export default defineConfig({
    server: {
      proxy: {
        '/api': {
-         target: 'http://localhost:8080',
-         changeOrigin: true,
-         rewrite: (path) => path.replace(/^\/api/, '') // 将 /test/depts 重写为 /depts
-       },
-       
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        //重写路径,把路径中的/api替换为空字符串
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
      }
    }
 })

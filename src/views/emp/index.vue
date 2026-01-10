@@ -108,8 +108,11 @@ const newEmp = ref({
   "salary": "",
   "exprList": []
 });
+// 独立管理工作经历的日期范围，避免在提交给后端时夹带 date 字段
+const exprDates = ref([]);
 const deptList=ref([]);//预加载部门列表
 const empForm=ref(null);//表单引用
+const token=ref('');//上传头像需要用到token
 
 
 // 点击新增员工按钮触发
@@ -130,6 +133,8 @@ function AddNewEmp()
     "salary": "",
     "exprList": []
   }
+  // 同步清空工作经历日期
+  exprDates.value = [];
   //重置表单校验状态
   empForm.value.resetFields();
 }
@@ -144,7 +149,8 @@ async function save()
   }
   else{
     dialogFormVisible.value=false;
-    let result=newEmp.value.id ? await editEmpApi(newEmp.value) : await addEmpApi(newEmp.value);
+    // 直接提交 newEmp，exprList 中已不包含 date 字段
+    let result = newEmp.value.id ? await editEmpApi(newEmp.value) : await addEmpApi(newEmp.value);
     if(result.code)
     {
       ElMessage.success('操作成功!');
@@ -178,40 +184,47 @@ function beforeAvatarUpload(file)
   }
   return isJPGorPNG && isLt2M;
 }
+function loadToken()
+{
+  const loginUser=JSON.parse(localStorage.getItem('loginUser'))
+  if(loginUser&&loginUser.token){
+    token.value=loginUser.token
+  }
+}
 
 // 添加工作经历
 function AddEmpExpr()
 {
-  //传到后端json是有四个字段的,但是后端,会忽略date这个字段,实际数据库表中也没有date字段
   newEmp.value.exprList.push({
     "company":"",
     "job":"",
     "begin":"",
-    "end":"",
-    "date":""
+    "end":""
   });
+  // 为对应的经历初始化一个日期范围容器
+  exprDates.value.push([]);
 }
 //删除工作经历
 function DeleteEmpExpr(index)
 {
   newEmp.value.exprList.splice(index,1);
+  exprDates.value.splice(index,1);
 }
-//监听工作经历数组变化,给begin和end赋值
-watch(()=>newEmp.value.exprList,(newValue)=>{
-  if(newValue.length!=0)
-    {newValue.forEach(expr=>{
-      if(expr.date.length==2)
-      {
-        expr.begin=expr.date[0];
-        expr.end=expr.date[1];
+// 监听独立的日期数组，实时回填 begin/end
+watch(() => exprDates.value, (newVal) => {
+  if (Array.isArray(newVal) && Array.isArray(newEmp.value.exprList)) {
+    newEmp.value.exprList.forEach((expr, idx) => {
+      const d = newVal[idx];
+      if (Array.isArray(d) && d.length === 2) {
+        expr.begin = d[0];
+        expr.end = d[1];
+      } else {
+        expr.begin = '';
+        expr.end = '';
       }
-      else{
-        expr.begin='';
-        expr.end='';
-      }
-    })
+    });
   }
-},{deep:true})
+}, { deep: true })
 
 //表单校验:
 const rules = ref({
@@ -245,10 +258,10 @@ async function edit(id)
   if(result.code)
   {
     newEmp.value=result.data;
-    //处理特殊的字段date
-    newEmp.value.exprList.forEach(expr=>{
-      expr.date=[expr.begin,expr.end];
-    })
+    // 将 begin/end 同步到独立的日期数组
+    exprDates.value = Array.isArray(newEmp.value.exprList)
+      ? newEmp.value.exprList.map(expr => (expr.begin && expr.end ? [expr.begin, expr.end] : []))
+      : [];
   }
 }
 
@@ -340,6 +353,7 @@ async function deleteSelectedEmps()
 function cancelallSelection() {
   showSelection.value = false;
   selectedIds.value = [];
+  // 清空表格的选择状态
   if (empTable.value) {
     empTable.value.clearSelection();
   }
@@ -364,15 +378,20 @@ onMounted(() => {
     search();
     //加载部门列表
     loadingDeptList();
+    //加载上传头像函数的token
+    loadToken();
 })
 
 </script>
 <template>
 
   <!-- 标题 -->
-  <h3>员工管理</h3>
-
-
+  <el-divider content-position="center" class="title-bar">
+    <el-icon class="mr-6"><UserFilled /></el-icon>
+    <span class="title-text">员工管理</span>
+  </el-divider>
+  <!-- 空一行 -->
+  <div style="height:10px"></div>
   <!-- 搜索栏 -->
   <div class="searchbar">
     <el-form :inline="true" :model="searchForm" class="search-form">
@@ -381,13 +400,13 @@ onMounted(() => {
       </el-form-item>
       <el-form-item label="性别">
         <el-select v-model="searchForm.gender" placeholder="请选择">
-          <el-option label="男" value="1" />
-          <el-option label="女" value="2" />
+          <el-option label="男" :value="1" />
+          <el-option label="女" :value="2" />
         </el-select>
       </el-form-item>
       <el-form-item label="入职日期">
         <el-date-picker v-model="searchForm.date" type="daterange" range-separator="到" start-placeholder="开始日期"
-          end-placeholder="结束日期" value-format="YYYY-MM-DD" /> <!-- 注意都是大写 -->
+          end-placeholder="结束日期" value-format="YYYY-MM-DD" format="YYYY-MM-DD"/> <!-- 注意都是大写 -->
       </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="applySearch">查询</el-button>
@@ -406,6 +425,8 @@ onMounted(() => {
       </el-icon>新增员工</el-button>
 
       <!-- 删除相关 -->
+
+      <!-- 没有showselection就显示批量删除按钮,有就显示取消和确认删除按钮 -->
     <el-button type="danger" v-if="!showSelection" @click="showSelection = true"><el-icon>
         <Delete />
       </el-icon>批量删除</el-button>
@@ -487,8 +508,8 @@ onMounted(() => {
         <el-col :span="12">
           <el-form-item label="性别" label-width="80px" prop="gender">
             <el-select v-model="newEmp.gender" placeholder="请选择">
-              <el-option label="男" value="1" />
-              <el-option label="女" value="2" />
+              <el-option label="男" :value="1" />
+              <el-option label="女" :value="2" />
             </el-select>
           </el-form-item>
         </el-col>
@@ -550,6 +571,7 @@ onMounted(() => {
               <el-upload
                 class="avatar-uploader" 
                 action="/api/upload"
+                :headers="{'token': token}"
                 :show-file-list="false" 
                 :on-success="handleAvatarSuccess" 
                 :before-upload="beforeAvatarUpload">
@@ -577,14 +599,16 @@ onMounted(() => {
       <!-- 接下来的行是工作经历列表 -->
        <el-row class="rowInDialog" 
          v-for="(expr,index) in newEmp.exprList" :key="index" :gutter="5" >
-            <el-col :span="11">
-             <el-form-item label="时间" label-width="40px">
-              <el-date-picker v-model="expr.date" type="daterange" size="small" 
-              range-separator="到" 
-              start-placeholder="开始日期"
-              end-placeholder="结束日期" :size="small" />
-             </el-form-item>
-            </el-col>
+             <el-col :span="11">
+               <el-form-item label="时间" label-width="40px">
+                <el-date-picker v-model="exprDates[index]" type="daterange" size="small" 
+                range-separator="到" 
+                start-placeholder="开始日期"
+                end-placeholder="结束日期" 
+                value-format="YYYY-MM-DD"
+                format="YYYY-MM-DD" />
+               </el-form-item>
+              </el-col>
             <el-col :span="7">
              <el-form-item label="公司" label-width="40px">
               <el-input v-model="expr.company" placeholder="请输入公司名称" size="small" style="width:100%" />
@@ -627,6 +651,10 @@ onMounted(() => {
 
 </template>
 <style scoped>
+/* 标题样式 */
+.title-bar{ margin: 8px 0 12px; }
+ .title-text{ font-size: 18px; font-weight: 600; }
+ .mr-6{ margin-right: 6px; }
 .search-form {
   margin-top: 10px;
   display: flex;
